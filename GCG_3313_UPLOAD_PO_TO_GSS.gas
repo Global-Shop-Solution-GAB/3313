@@ -1,0 +1,275 @@
+Program.Sub.ScreenSU.Start
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+
+Variable.Global.sFile.Declare(String)
+Variable.Global.sLine.Declare(String)
+Variable.Global.i.Declare(Long,0)
+Variable.Global.sField.Declare(String)
+Variable.Global.sUpload.Declare(String)
+Variable.Global.sLastPONum.Declare(String)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.SetErrorHandler("Main_Err")
+F.Intrinsic.Control.ClearErrors
+'See page 115 - 119 - GS File Conversion.doc for formatting.  This program formats all fields in order according to the doc.
+'Saves the data file PURORDER.txt in directory Global\FIles
+'Calls upload program
+'NOTE: this program uses the first line of each PO# to create the header and first line record.  Header records are not seperated in the upload file.
+V.Local.sError.Declare(String)
+V.Local.sRet.Declare(String)
+
+F.Intrinsic.UI.ShowOpenFileDialog("","txt|*.txt","",V.Local.sRet)
+F.Intrinsic.Control.If(V.Local.sRet,=,"***CANCEL***")
+	F.Intrinsic.Control.End
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.File.File2String(V.Local.sRet,V.Global.sFile)
+F.Intrinsic.String.Split(V.Global.sFile,V.Ambient.NewLine,V.Global.sLine)
+F.Intrinsic.Control.For(V.Global.i,1,V.Global.sLine.UBound,1)
+	F.Intrinsic.Control.If(V.Global.sLine(v.Global.i),<>,"")
+		F.Intrinsic.String.Split(V.Global.sLine(v.Global.i),",",V.Global.sField)
+		'PO number - used throughout program, formatted here only
+		F.Intrinsic.String.Right(V.Global.sField(0),7,V.Global.sField(0))
+		'if not on same order number create records A, B, and C and first line record
+		F.Intrinsic.Control.If(V.Global.sField(0),<>,V.Global.sLastPONum)
+			F.Intrinsic.Control.CallSub(A)
+			F.Intrinsic.Control.CallSub(Bandc)
+			F.Intrinsic.Control.CallSub(Line)
+		F.Intrinsic.Control.Else
+			'create all lines for header records A,B,C
+			F.Intrinsic.Control.CallSub(Line)
+		F.Intrinsic.Control.EndIf
+		V.Global.sLastPONum.Set(V.Global.sField(0))
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.Next(V.Global.i)
+
+
+F.Intrinsic.Control.CallSub(Upload)
+
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Main_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_UPLOAD_PO_TO_GSS.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.Debug.SetLA(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+Program.Sub.Main.End
+
+Program.Sub.A.Start
+F.Intrinsic.Control.SetErrorHandler("A_Err")
+F.Intrinsic.Control.ClearErrors
+'formatting data then saving data to variable sUpload
+'Variable sTemp are fillers
+V.Local.sError.Declare(String)
+V.Local.sTemp.Declare(String)
+
+'create record A
+F.Intrinsic.Control.If(V.Global.i,>,1)
+	'newline
+	F.Intrinsic.String.Concat(V.Global.sUpload,V.Ambient.NewLine,V.Global.sUpload)
+F.Intrinsic.Control.EndIf
+
+'filler
+F.Intrinsic.String.LPad(V.Local.sTemp," ",185,V.Local.sTemp)
+'purchase order date
+F.Intrinsic.String.Format(V.Global.sField(1),"MMDDYY",V.Global.sField(1))
+'due date
+F.Intrinsic.Control.If(V.Global.sField(2).Trim,<>,"")
+	F.Intrinsic.String.Format(V.Global.sField(2).Trim,"MMDDYY",V.Global.sField(2).Trim)
+F.Intrinsic.Control.Else
+	F.Intrinsic.String.LPad(V.Global.sField(2).Trim,0,6,V.Global.sField(2).Trim)
+F.Intrinsic.Control.EndIf
+'save
+F.Intrinsic.String.Concat(V.Global.sUpload,V.Global.sField(0),"  ","A",V.Local.sTemp,V.Global.sField(1),000000,V.Global.sField(2),V.Global.sUpload)
+'filler
+F.Intrinsic.String.LPad(V.Local.sTemp," ",54,V.Local.sTemp)
+'Vendor
+F.Intrinsic.String.RPad(V.Global.sField(3)," ",6,V.Global.sField(3))
+'save
+F.Intrinsic.String.Concat(V.Global.sUpload,V.Local.sTemp,V.Global.sField(3),V.Global.sUpload)
+'filler
+'F.Intrinsic.String.LPad(V.Local.sTemp," ",122,V.Local.sTemp)
+F.Intrinsic.String.LPad(V.Local.sTemp," ",114,V.Local.sTemp)
+'save
+'F.Intrinsic.String.Concat(V.Global.sUpload,V.Local.sTemp,V.Global.sUpload)
+F.Intrinsic.String.Concat(V.Global.sUpload,V.Local.sTemp,"00000000",V.Global.sUpload)
+'newline
+F.Intrinsic.String.Concat(V.Global.sUpload,V.Ambient.NewLine,V.Global.sUpload)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("A_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_UPLOAD_PO_TO_GSS.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+
+Program.Sub.A.End
+
+Program.Sub.BandC.Start
+F.Intrinsic.Control.SetErrorHandler("B_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sTemp.Declare(String)
+
+'=====Record B==================================
+'vendor name - leave blan ot auto populate vendor info
+'F.Intrinsic.String.RPad(V.Global.sField(4).Trim," ",30,V.Global.sField(4))
+'filler
+'F.Intrinsic.String.LPad(V.Local.sTemp," ",287,V.Local.sTemp)
+F.Intrinsic.String.LPad(V.Local.sTemp," ",317,V.Local.sTemp)
+
+'save
+F.Intrinsic.String.Concat(V.Global.sUpload,V.Global.sField(0),"  ","B",V.Local.sTemp,V.Global.sField(3),V.Global.sUpload)
+'filler
+F.Intrinsic.String.LPad(V.Local.sTemp," ",157,V.Local.sTemp)
+'save
+F.Intrinsic.String.Concat(V.Global.sUpload,V.Local.sTemp,V.Global.sUpload)
+'new line
+F.Intrinsic.String.Concat(V.Global.sUpload,V.Ambient.NewLine,V.Global.sUpload)
+'''========Record C=================================
+'vendor name
+'F.Intrinsic.String.RPad(V.Global.sField(4).Trim," ",30,V.Global.sField(4))
+'filler
+'F.Intrinsic.String.LPad(V.Local.sTemp," ",287,V.Local.sTemp)
+F.Intrinsic.String.LPad(V.Local.sTemp," ",317,V.Local.sTemp)
+'save
+F.Intrinsic.String.Concat(V.Global.sUpload,V.Global.sField(0),"  ","C",V.Local.sTemp,V.Global.sField(3),V.Global.sUpload)
+'filler
+F.Intrinsic.String.LPad(V.Local.sTemp," ",157,V.Local.sTemp)
+'save
+F.Intrinsic.String.Concat(V.Global.sUpload,V.Local.sTemp,V.Global.sUpload)
+
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("B_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_UPLOAD_PO_TO_GSS.gas",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.BandC.End
+
+Program.Sub.Line.Start
+V.Local.sTemp.Declare(String)
+V.Local.sPurchaseCostQty.Declare(String)
+V.Local.iPurchaseCost.Declare(Long)
+V.Local.sPurchaseCost.Declare(String)
+V.Local.sPurchaseQty.Declare(String)
+V.Local.iPurchaseQty.Declare(Long)
+V.Local.sPurchaseQtyOrdered.Declare(String)
+V.Local.iExtension.Declare(Long)
+V.Local.sExtension.Declare(String)
+V.Local.sExtensionQty.Declare(String)
+V.Local.iParenthesis.Declare(Long)
+V.Local.sParenthesis.Declare(String)
+'create Lines for records
+'New Line
+F.Intrinsic.String.Concat(V.Global.sUpload,V.Ambient.NewLine,V.Global.sUpload)
+'PO Line
+F.Intrinsic.String.LPad(V.Global.sField(5),0,3,V.Global.sField(5))
+'PART# - customer is not using rev at the moment
+F.Intrinsic.String.GSSPartString(V.Global.sField(6),"",V.Global.sField(6))
+'part desc
+F.Intrinsic.String.RPad(V.Global.sField(7)," ",30,V.Global.sField(7))
+'UM = EA
+'Filler
+F.Intrinsic.String.LPad(V.Local.sTemp," ",60,V.Local.sTemp)
+'Save
+F.Intrinsic.String.Concat(V.Global.sUpload,V.Global.sField(0),V.Global.sField(5),V.Global.sField(6),"  ",V.Global.sField(7),"EA",V.Local.sTemp,V.Global.sUpload)
+'due date - for the very first line of each PO# the date is already formatted in subroutine A
+F.Intrinsic.Control.If(V.Global.sField(2).Trim,<>,000000)
+	F.Intrinsic.Control.If(V.Global.sField(2).Trim,=,"")
+'		F.Intrinsic.String.Format(V.Global.sField(2).Trim,"MMDDYY",V.Global.sField(2).Trim)
+'	F.Intrinsic.Control.Else
+		F.Intrinsic.String.LPad(V.Global.sField(2).Trim,0,6,V.Global.sField(2).Trim)
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.EndIf
+'F.Intrinsic.Debug.InvokeDebugger
+'F.Intrinsic.Debug.Stop
+
+'purchase cost
+F.Intrinsic.String.RPad(V.Global.sField(12)," ",16,V.Global.sField(12))
+
+'Filler
+F.Intrinsic.String.LPad(V.Local.sTemp," ",16,V.Local.sTemp)
+'save
+F.Intrinsic.String.Concat(V.Global.sUpload,V.Global.sField(2),000000,V.Global.sField(12),V.Local.sTemp,V.Global.sUpload)
+
+'purchase quantity ordered
+F.Intrinsic.String.RPad(V.Global.sField(10)," ",16,V.Global.sField(10))
+
+'Filler
+F.Intrinsic.String.LPad(V.Local.sTemp," ",32,V.Local.sTemp)
+'save
+F.Intrinsic.String.Concat(V.Global.sUpload,V.Global.sField(10),V.Local.sTemp,V.Global.sUpload)
+
+'Extension amount
+F.Intrinsic.String.RPad(V.Global.sField(13)," ",16,V.Global.sField(13))
+
+'Filler
+F.Intrinsic.String.LPad(V.Local.sTemp," ",37,V.Local.sTemp)
+'manufacturer part
+'this part will contain ( ) after the manufacturer part number.
+F.Intrinsic.String.Instr(V.Global.sField(9),"(",V.Local.iParenthesis)
+F.Intrinsic.Control.If(V.Local.iParenthesis,>,0)
+	F.Intrinsic.Math.Sub(V.Local.iParenthesis,1,V.Local.iParenthesis)
+	F.Intrinsic.String.Left(V.Global.sField(9),V.Local.iParenthesis,V.Global.sField(9))
+F.Intrinsic.Control.EndIf
+F.Intrinsic.String.GSSPartString(V.Global.sField(9),"",V.Global.sField(9))
+'add location to part
+F.Intrinsic.String.RPad(V.Global.sField(9)," ",23,V.Global.sField(9))
+'manufacturer name
+F.Intrinsic.String.RPad(V.Global.sField(8)," ",30,V.Global.sField(8))
+'save
+F.Intrinsic.String.Concat(V.Global.sUpload,V.Global.sField(13),V.Local.sTemp,V.Global.sField(9),V.Global.sField(8),V.Global.sUpload)
+'Filler
+F.Intrinsic.String.LPad(V.Local.sTemp," ",24,V.Local.sTemp)
+'save
+F.Intrinsic.String.Concat(V.Global.sUpload,V.Local.sTemp,"USD",V.Global.sUpload)
+
+'Filler
+F.Intrinsic.String.LPad(V.Local.sTemp," ",218,V.Local.sTemp)
+'save
+F.Intrinsic.String.Concat(V.Global.sUpload,V.Local.sTemp,"00000000",V.Global.sUpload)
+'F.Intrinsic.String.LPad(V.Local.sTemp," ",267,V.Local.sTemp)
+'Filler
+F.Intrinsic.String.LPad(V.Local.sTemp," ",41,V.Local.sTemp)
+'save
+F.Intrinsic.String.Concat(V.Global.sUpload,V.Local.sTemp,V.Global.sUpload)
+
+
+
+
+Program.Sub.Line.End
+
+Program.Sub.Upload.Start
+V.Local.sFileName.Declare(String)
+V.Local.sFileDir.Declare(String)
+
+V.Local.sFileName.Set("PURORDER.TXT")
+F.Intrinsic.String.Concat(V.Caller.FilesDir,"\",V.Local.sFileName,V.Local.sFileDir)
+F.Intrinsic.File.String2File(V.Local.sFileDir,V.Global.sUpload)
+'F.Intrinsic.Debug.CallWrapperDebugEnable
+F.Global.General.CallWrapperAsync(50,"UPLPUROR/U/A")
+'F.Global.General.CallWrapperAsync(50,"UPLPUROR/U")
+
+
+Program.Sub.Upload.End
+
+Program.Sub.Comments.Start
+${$0$}$GCG_UPLOAD_PO_TO_GSS$}$ERIC$}$1/3/2013
+${$3$}$0$}$$}$-1$}$-1$}$$}$1/1/1900$}$quote 4261
+Program.Sub.Comments.End
+
